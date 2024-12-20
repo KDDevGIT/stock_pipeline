@@ -1,3 +1,4 @@
+Download python and pyspark
 Download the JDK from Oracle's JDK site or use OpenJDK.
 Download winutils.exe and extract into C:\users\<user>\Hadoop
 Download Apache Spark "Pre-built for Apache Hadoop 3.3 and later." (.tgz) and extract into C:\Users\<user>\Spark\spark-3.5.3-bin-hadoop3
@@ -13,7 +14,7 @@ setx PYSPARK_HOME "C:\Users\kdabc\AppData\Local\Programs\Python\Python312\python
 %HADOOP_HOME%\bin
 
 #verify Spark is configured 
-spark-submit --version
+C:\users\<user>\spark-submit --version
 
 
 
