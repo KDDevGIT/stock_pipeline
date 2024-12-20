@@ -28,4 +28,4 @@ docker exec -it kafka bash kafka-topics --bootstrap-server localhost:9092 --list
 docker exec -it kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic stock_prices --from-beginning
 
 #Spark Job - Moving Average over batches from Kafka
-spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3 C:\Users\kdabc\stock_pipeline\spark_processor.py #this will also work
+spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3 spark_processor.py

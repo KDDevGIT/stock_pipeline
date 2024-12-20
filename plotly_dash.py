@@ -1,73 +1,63 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import from_json, col
-from pyspark.sql.types import StructType, StructField, StringType, FloatType
+from pyspark.sql.functions import col, get_json_object
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import pandas as pd
 
-# Kafka Configuration
-KAFKA_BROKER = "localhost:9092"
-TOPIC = "stock_prices"
-
-# Create SparkSession
+# Initialize Spark session
 spark = SparkSession.builder \
-    .appName("RealTimeLineGraph") \
+    .appName("Real-Time Stock Graph") \
     .getOrCreate()
 
-# Define Schema
-schema = StructType([
-    StructField("symbol", StringType(), True),
-    StructField("timestamp", StringType(), True),
-    StructField("open", FloatType(), True),
-    StructField("high", FloatType(), True),
-    StructField("low", FloatType(), True),
-    StructField("close", FloatType(), True),
-    StructField("volume", FloatType(), True)
-])
-
-# Read Data from Kafka
-df = spark.readStream \
+# Read Kafka stream
+kafka_stream = spark.readStream \
     .format("kafka") \
-    .option("kafka.bootstrap.servers", KAFKA_BROKER) \
-    .option("subscribe", TOPIC) \
+    .option("kafka.bootstrap.servers", "localhost:9092") \
+    .option("subscribe", "stock_prices") \
+    .option("startingOffsets", "latest") \
     .load()
 
-# Parse Kafka Messages
-stock_data = df.select(from_json(col("value").cast("string"), schema).alias("data")).select("data.*")
+# Parse Kafka JSON data
+stock_data = kafka_stream.selectExpr("CAST(value AS STRING) as value")
+parsed_data = stock_data.select(
+    get_json_object(col("value"), "$.symbol").alias("symbol"),
+    get_json_object(col("value"), "$.close").alias("close").cast("double"),
+    get_json_object(col("value"), "$.timestamp").alias("timestamp")
+)
 
-# Collect Real-Time Data for Visualization
-real_time_data = []
+# Initialize plot
+fig, ax = plt.subplots()
+timestamps = []
+prices = []
 
-def update_data(batch_df, batch_id):
-    global real_time_data
-    # Collect the batch data
-    batch_df_pandas = batch_df.select("timestamp", "close").toPandas()
-    real_time_data.append(batch_df_pandas)
+# Update function for Matplotlib
+def update_plot(i):
+    ax.clear()
+    ax.plot(timestamps, prices, marker="o", label="Stock Price")
+    ax.set_title("Real-Time Stock Prices from Kafka")
+    ax.set_xlabel("Timestamp")
+    ax.set_ylabel("Close Price")
+    ax.legend()
+    plt.xticks(rotation=45)
+    plt.tight_layout()
 
-query = stock_data.writeStream \
-    .foreachBatch(update_data) \
+# Function to process and append Kafka data
+def process_batch(batch_df, epoch_id):
+    global timestamps, prices
+    pandas_df = batch_df.toPandas()
+    if not pandas_df.empty:
+        pandas_df["timestamp"] = pd.to_datetime(pandas_df["timestamp"])
+        timestamps.extend(pandas_df["timestamp"].tolist())  # Append new timestamps
+        prices.extend(pandas_df["close"].tolist())  # Append new close prices
+
+# Start streaming query
+query = parsed_data.writeStream \
+    .foreachBatch(process_batch) \
+    .outputMode("append") \
     .start()
 
-# Real-Time Visualization with Matplotlib
-def animate(i):
-    global real_time_data
-    if real_time_data:
-        # Combine all collected batches
-        combined_df = pd.concat(real_time_data)
-        combined_df['timestamp'] = pd.to_datetime(combined_df['timestamp'])
-        combined_df = combined_df.sort_values(by="timestamp")
-        
-        plt.cla()
-        plt.plot(combined_df['timestamp'], combined_df['close'], label="Close Price")
-        plt.xlabel("Timestamp")
-        plt.ylabel("Close Price")
-        plt.title("Real-Time Stock Prices")
-        plt.legend(loc="upper left")
-
-# Configure Matplotlib Animation
-fig = plt.figure()
-ani = FuncAnimation(fig, animate, interval=1000)
-
+# Set up Matplotlib animation
+ani = FuncAnimation(fig, update_plot, interval=1000)
 plt.show()
 
 query.awaitTermination()
