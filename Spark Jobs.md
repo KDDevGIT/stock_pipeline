@@ -4,8 +4,8 @@
 
 ### Producers
 <ins>stock_pipeline</ins>
-kafka_producer_yfinance.py #pulls SINGLE API stock data calls. Can change ticker here. 
-kafka_producer_yfinance_m.py #pulls MULTIPLE API stock data calls. Can change # of stocks and tickers here. 
+- kafka_producer_yfinance.py #pulls SINGLE API stock data calls. Can change ticker here. 
+- kafka_producer_yfinance_m.py #pulls MULTIPLE API stock data calls. Can change # of stocks and tickers here. 
 
 ### Apache Spark jobs and queries
 <ins>Moving Avg Per Batch</ins>
